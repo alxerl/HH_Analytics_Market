@@ -17,6 +17,7 @@ from .db.matching import recommend_from_database
 from .db.migrations import apply_migrations
 from .ingestion.collector import collect_queries
 from .logging import configure_logging
+from .models.train import train_role_model
 from .pipeline import recommend_from_report, transform_snapshot
 from .quality.runner import run_database_quality, should_fail
 from .recommendation.profile import load_profile
@@ -49,8 +50,12 @@ def build_parser() -> argparse.ArgumentParser:
     predict = subparsers.add_parser("predict", help="Persist rule-based role, seniority and skills")
     predict.add_argument("--skills", type=Path, default=Path("config/skills.yml"))
 
+    train = subparsers.add_parser("train", help="Train a role classifier and model card")
+    train.add_argument("--dataset", type=Path, default=Path("data/labeling/gold_labels.csv"))
+    train.add_argument("--models-root", type=Path, default=Path("models"))
+    train.add_argument("--model-version", default="v0.1.0")
+
     for name, help_text in (
-        ("train", "Train a model"),
         ("evaluate", "Evaluate a model"),
         ("build-marts", "Build analytical marts"),
     ):
@@ -134,6 +139,13 @@ def main(argv: list[str] | None = None) -> int:
         print(
             f"run_id={run_id} predictions={prediction_summary['predictions']} "
             f"skills={prediction_summary['skill_matches']}"
+        )
+        return 0
+    if args.command == "train":
+        training = train_role_model(args.dataset, args.models_root, args.model_version)
+        print(
+            f"run_id={run_id} model_version={training.model_version} "
+            f"macro_f1={training.macro_f1:.4f} model_path={training.model_path}"
         )
         return 0
     if args.command == "quality":

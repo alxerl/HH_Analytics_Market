@@ -14,6 +14,8 @@ dependencies = [
   "beautifulsoup4>=4.12,<5",
   "pydantic-settings>=2.2,<3",
   "psycopg[binary]>=3.2,<4",
+  "scikit-learn>=1.5,<2",
+  "joblib>=1.4,<2",
   "PyYAML>=6.0,<7",
   "tenacity>=8.3,<10",
 ]
@@ -48,3 +50,7 @@ select = ["E", "F", "I", "B"]
 python_version = "3.11"
 strict = true
 files = ["src/hh_market"]
+
+[[tool.mypy.overrides]]
+module = ["joblib", "sklearn.*"]
+ignore_missing_imports = true
