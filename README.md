@@ -59,6 +59,10 @@ For the database-backed path, run `migrate`, `load`, `predict`, `quality`, then 
 daily GitHub Actions workflow executes this sequence and stores generated reports as short-lived
 artifacts. See [the runbook](docs/runbook.md) and [BI dataset contract](dashboard/README.md).
 
+Before release, follow the [clean-room checklist](docs/clean_room_checklist.md). The
+[executive-report policy](docs/executive_report.md) prevents conclusions outside the observed
+period or unsupported by a stable mart.
+
 ## Local database
 
 ```bash
