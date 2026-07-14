@@ -11,6 +11,17 @@ permissions:
 jobs:
   quality:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: hh_market
+          POSTGRES_USER: hh_market
+          POSTGRES_PASSWORD: hh_market
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U hh_market -d hh_market"
+          --health-interval 5s --health-timeout 5s --health-retries 10
     strategy:
       matrix:
         python-version: ["3.12", "3.13"]
@@ -24,3 +35,10 @@ jobs:
       - run: uv run ruff check .
       - run: uv run mypy
       - run: uv run pytest
+      - name: Apply schema migrations
+        env:
+          PGPASSWORD: hh_market
+        run: |
+          for migration in migrations/*.sql; do
+            psql -h localhost -U hh_market -d hh_market -v ON_ERROR_STOP=1 -f "$migration"
+          done
