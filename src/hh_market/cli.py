@@ -13,6 +13,7 @@ from .api.client import HHClient
 from .config import Settings, load_search_queries
 from .db.analytics import persist_rule_features
 from .db.loaders import load_core_snapshot, load_raw_snapshot
+from .db.matching import recommend_from_database
 from .db.migrations import apply_migrations
 from .ingestion.collector import collect_queries
 from .logging import configure_logging
@@ -58,11 +59,14 @@ def build_parser() -> argparse.ArgumentParser:
     quality.add_argument("--date", dest="snapshot_date", type=date.fromisoformat, required=True)
     quality.add_argument("--fail-on", choices=("info", "warning", "critical"), default="critical")
     quality.add_argument("--reports-root", type=Path, default=Path("reports"))
-    recommend = subparsers.add_parser("recommend", help="Recommend transformed vacancies")
+    recommend = subparsers.add_parser("recommend", help="Recommend representative market vacancies")
     recommend.add_argument("--date", dest="snapshot_date", type=date.fromisoformat, required=True)
     recommend.add_argument("--profile", type=Path, required=True)
     recommend.add_argument("--top", type=int, default=20)
     recommend.add_argument("--reports-root", type=Path, default=Path("reports"))
+    recommend.add_argument(
+        "--from-report", action="store_true", help="Use local transformed JSON fallback"
+    )
     return parser
 
 
@@ -140,8 +144,13 @@ def main(argv: list[str] | None = None) -> int:
         print(f"run_id={run_id} checks={len(results)} failures={failures}")
         return 2 if should_fail(results, args.fail_on) else 0
     if args.command == "recommend":
-        recommendations = recommend_from_report(
-            args.reports_root, args.snapshot_date, load_profile(args.profile), args.top
+        profile = load_profile(args.profile)
+        recommendations = (
+            recommend_from_report(args.reports_root, args.snapshot_date, profile, args.top)
+            if args.from_report
+            else recommend_from_database(
+                Settings().database_url, args.snapshot_date, profile, args.top, args.reports_root
+            )
         )
         print(json.dumps(recommendations, ensure_ascii=False, indent=2))
         return 0
