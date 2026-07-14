@@ -1,6 +1,7 @@
 """Command-line entrypoint for the HH Analytics Market pipeline."""
 
 import argparse
+import json
 import logging
 import sys
 import uuid
@@ -12,7 +13,8 @@ from .api.client import HHClient
 from .config import Settings, load_search_queries
 from .ingestion.collector import collect_queries
 from .logging import configure_logging
-from .pipeline import transform_snapshot
+from .pipeline import recommend_from_report, transform_snapshot
+from .recommendation.profile import load_profile
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -38,10 +40,14 @@ def build_parser() -> argparse.ArgumentParser:
         ("evaluate", "Evaluate a model"),
         ("predict", "Predict vacancy labels"),
         ("build-marts", "Build analytical marts"),
-        ("recommend", "Recommend vacancies"),
         ("quality", "Run data quality checks"),
     ):
         subparsers.add_parser(name, help=help_text)
+    recommend = subparsers.add_parser("recommend", help="Recommend transformed vacancies")
+    recommend.add_argument("--date", dest="snapshot_date", type=date.fromisoformat, required=True)
+    recommend.add_argument("--profile", type=Path, required=True)
+    recommend.add_argument("--top", type=int, default=20)
+    recommend.add_argument("--reports-root", type=Path, default=Path("reports"))
     return parser
 
 
@@ -85,6 +91,12 @@ def main(argv: list[str] | None = None) -> int:
             f"records={transform_summary['records']} "
             f"quality_failures={transform_summary['quality_failures']}"
         )
+        return 0
+    if args.command == "recommend":
+        recommendations = recommend_from_report(
+            args.reports_root, args.snapshot_date, load_profile(args.profile), args.top
+        )
+        print(json.dumps(recommendations, ensure_ascii=False, indent=2))
         return 0
     print(f"run_id={run_id} command={args.command} (implementation scheduled by phase plan)")
     return 0
