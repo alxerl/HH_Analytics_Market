@@ -41,6 +41,11 @@ uv run hh-market collect --date 2026-07-14 --resume
 uv run hh-market transform --date 2026-07-14
 uv run hh-market migrate
 uv run hh-market load --date 2026-07-14
+uv run hh-market train --dataset data/labeling/gold_labels.csv --model-version v0.1.0
+uv run hh-market predict --model-path models/role-v0.1.0.joblib --model-version v0.1.0
+uv run hh-market build-marts
+uv run hh-market quality --date 2026-07-14 --fail-on critical
+uv run hh-market recommend --date 2026-07-14 --profile data/profiles/example_profile.yml --top 20
 ```
 
 Responses are written below `data/raw/<snapshot-date>/`; this directory is intentionally ignored

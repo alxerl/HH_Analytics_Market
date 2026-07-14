@@ -12,6 +12,7 @@ from . import __version__
 from .api.client import HHClient
 from .config import Settings, load_search_queries
 from .db.analytics import persist_rule_features
+from .db.dedup import cluster_publications
 from .db.loaders import load_core_snapshot, load_raw_snapshot
 from .db.marts import build_marts
 from .db.matching import recommend_from_database
@@ -134,9 +135,11 @@ def main(argv: list[str] | None = None) -> int:
         core_summary = load_core_snapshot(
             settings.database_url, args.snapshot_date, database_run_id
         )
+        duplicate_clusters = cluster_publications(settings.database_url, args.snapshot_date)
         print(
             f"run_id={run_id} pages={raw_summary['pages']} "
-            f"snapshots={raw_summary['vacancy_snapshots']} vacancies={core_summary['vacancies']}"
+            f"snapshots={raw_summary['vacancy_snapshots']} vacancies={core_summary['vacancies']} "
+            f"duplicate_clusters={duplicate_clusters}"
         )
         return 0
     if args.command == "predict":
@@ -186,8 +189,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(json.dumps(recommendations, ensure_ascii=False, indent=2))
         return 0
-    print(f"run_id={run_id} command={args.command} (implementation scheduled by phase plan)")
-    return 0
+    raise AssertionError(f"Unhandled command: {args.command}")
 
 
 if __name__ == "__main__":
