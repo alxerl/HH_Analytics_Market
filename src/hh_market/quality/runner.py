@@ -37,6 +37,23 @@ def run_database_quality(
             WHERE from_rub < 0 OR to_rub < 0
               OR (from_rub IS NOT NULL AND to_rub IS NOT NULL AND from_rub > to_rub)
         """, 0),
+        ("duplicate_cluster_single_representative", "critical", """
+            SELECT count(*) FROM (
+              SELECT cluster_id
+              FROM core.duplicate_cluster_members
+              GROUP BY cluster_id
+              HAVING count(*) FILTER (WHERE is_representative) <> 1
+            ) invalid_clusters
+        """, 0),
+        ("prediction_version_present", "critical", """
+            SELECT count(*) FROM ml.predictions
+            WHERE model_version IS NULL AND rules_version IS NULL
+        """, 0),
+        ("vacancy_skill_orphans", "critical", """
+            SELECT count(*) FROM core.vacancy_skills vacancy_skill
+            LEFT JOIN core.skills skill ON skill.skill_id = vacancy_skill.skill_id
+            WHERE skill.skill_id IS NULL
+        """, 0),
         ("unknown_role_share", "warning", """
             SELECT count(*) FROM ml.predictions
             WHERE target = 'role' AND predicted_class = 'unclear'
