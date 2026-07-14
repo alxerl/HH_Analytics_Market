@@ -38,11 +38,15 @@ Copy `.env.example` to `.env` only when overriding defaults. Never commit `.env`
 ```bash
 uv run hh-market collect --date 2026-07-14 --query-set config/search_queries.yml
 uv run hh-market collect --date 2026-07-14 --resume
+uv run hh-market transform --date 2026-07-14
 ```
 
 Responses are written below `data/raw/<snapshot-date>/`; this directory is intentionally ignored
 by Git. `manifest.json` records accepted pages, paths and checksums. The public HH API terms and
 data-retention policy must be reviewed before publishing or redistributing any collected data.
+
+`transform` builds `reports/transformed-<date>.json` with canonical vacancy records, rule-based
+role labels, dictionary skills and data-quality results. Reports remain local and are not committed.
 
 ## Local database
 
