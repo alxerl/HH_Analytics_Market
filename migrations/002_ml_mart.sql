@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS ml.model_versions (
 );
 
 CREATE TABLE IF NOT EXISTS ml.predictions (
+  prediction_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   vacancy_id text NOT NULL REFERENCES core.vacancies(vacancy_id),
   target text NOT NULL,
   predicted_class text NOT NULL,
@@ -68,7 +69,7 @@ CREATE TABLE IF NOT EXISTS ml.predictions (
   rules_version text,
   decision_path text NOT NULL,
   predicted_at timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY (vacancy_id, target, model_version, rules_version)
+  UNIQUE NULLS NOT DISTINCT (vacancy_id, target, model_version, rules_version)
 );
 
 CREATE TABLE IF NOT EXISTS ml.seniority_scores (

@@ -11,6 +11,7 @@ from pathlib import Path
 from . import __version__
 from .api.client import HHClient
 from .config import Settings, load_search_queries
+from .db.analytics import persist_rule_features
 from .db.loaders import load_core_snapshot, load_raw_snapshot
 from .db.migrations import apply_migrations
 from .ingestion.collector import collect_queries
@@ -43,10 +44,12 @@ def build_parser() -> argparse.ArgumentParser:
     load = subparsers.add_parser("load", help="Load raw snapshots and canonical core records")
     load.add_argument("--date", dest="snapshot_date", type=date.fromisoformat, required=True)
 
+    predict = subparsers.add_parser("predict", help="Persist rule-based role, seniority and skills")
+    predict.add_argument("--skills", type=Path, default=Path("config/skills.yml"))
+
     for name, help_text in (
         ("train", "Train a model"),
         ("evaluate", "Evaluate a model"),
-        ("predict", "Predict vacancy labels"),
         ("build-marts", "Build analytical marts"),
         ("quality", "Run data quality checks"),
     ):
@@ -116,6 +119,13 @@ def main(argv: list[str] | None = None) -> int:
         print(
             f"run_id={run_id} pages={raw_summary['pages']} "
             f"snapshots={raw_summary['vacancy_snapshots']} vacancies={core_summary['vacancies']}"
+        )
+        return 0
+    if args.command == "predict":
+        prediction_summary = persist_rule_features(Settings().database_url, args.skills)
+        print(
+            f"run_id={run_id} predictions={prediction_summary['predictions']} "
+            f"skills={prediction_summary['skill_matches']}"
         )
         return 0
     if args.command == "recommend":
