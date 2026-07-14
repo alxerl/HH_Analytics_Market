@@ -13,10 +13,13 @@ from .api.client import HHClient
 from .config import Settings, load_search_queries
 from .db.analytics import persist_rule_features
 from .db.loaders import load_core_snapshot, load_raw_snapshot
+from .db.marts import build_marts
 from .db.matching import recommend_from_database
 from .db.migrations import apply_migrations
+from .db.model_predictions import persist_hybrid_predictions
 from .ingestion.collector import collect_queries
 from .logging import configure_logging
+from .models.evaluate import evaluate_role_model
 from .models.train import train_role_model
 from .pipeline import recommend_from_report, transform_snapshot
 from .quality.runner import run_database_quality, should_fail
@@ -49,17 +52,19 @@ def build_parser() -> argparse.ArgumentParser:
 
     predict = subparsers.add_parser("predict", help="Persist rule-based role, seniority and skills")
     predict.add_argument("--skills", type=Path, default=Path("config/skills.yml"))
+    predict.add_argument("--model-path", type=Path)
+    predict.add_argument("--model-version")
 
     train = subparsers.add_parser("train", help="Train a role classifier and model card")
     train.add_argument("--dataset", type=Path, default=Path("data/labeling/gold_labels.csv"))
     train.add_argument("--models-root", type=Path, default=Path("models"))
     train.add_argument("--model-version", default="v0.1.0")
 
-    for name, help_text in (
-        ("evaluate", "Evaluate a model"),
-        ("build-marts", "Build analytical marts"),
-    ):
-        subparsers.add_parser(name, help=help_text)
+    evaluate = subparsers.add_parser("evaluate", help="Evaluate a trained role classifier")
+    evaluate.add_argument("--model-path", type=Path, required=True)
+    evaluate.add_argument("--dataset", type=Path, default=Path("data/labeling/gold_labels.csv"))
+
+    subparsers.add_parser("build-marts", help="Validate and summarize mart views")
     quality = subparsers.add_parser("quality", help="Run and persist data-quality checks")
     quality.add_argument("--date", dest="snapshot_date", type=date.fromisoformat, required=True)
     quality.add_argument("--fail-on", choices=("info", "warning", "critical"), default="critical")
@@ -140,6 +145,21 @@ def main(argv: list[str] | None = None) -> int:
             f"run_id={run_id} predictions={prediction_summary['predictions']} "
             f"skills={prediction_summary['skill_matches']}"
         )
+        if args.model_path:
+            if not args.model_version:
+                raise SystemExit("--model-version is required with --model-path")
+            hybrid_summary = persist_hybrid_predictions(
+                Settings().database_url, args.model_path, args.model_version
+            )
+            print(f"hybrid_predictions={hybrid_summary['hybrid_predictions']}")
+        return 0
+    if args.command == "evaluate":
+        macro_f1 = evaluate_role_model(args.model_path, args.dataset)
+        print(f"run_id={run_id} macro_f1={macro_f1:.4f}")
+        return 0
+    if args.command == "build-marts":
+        mart_summary = build_marts(Settings().database_url)
+        print(json.dumps(mart_summary, ensure_ascii=False, sort_keys=True))
         return 0
     if args.command == "train":
         training = train_role_model(args.dataset, args.models_root, args.model_version)
