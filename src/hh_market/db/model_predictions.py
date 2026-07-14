@@ -14,6 +14,8 @@ def persist_hybrid_predictions(
     database_url: str, model_path: Path, model_version: str
 ) -> dict[str, int]:
     artifact_hash = hashlib.sha256(model_path.read_bytes()).hexdigest()
+    card_path = model_path.with_suffix(".model-card.json")
+    metrics = json.loads(card_path.read_text(encoding="utf-8")) if card_path.is_file() else {}
     count = 0
     with psycopg.connect(database_url) as connection:
         with connection.cursor(row_factory=psycopg.rows.dict_row) as cursor:
@@ -24,14 +26,20 @@ def persist_hybrid_predictions(
                   metrics, artifact_path, status
                 ) VALUES (
                   %s, 'role', 'hybrid rules + TF-IDF Logistic Regression', %s,
-                  'gold-v1', %s, '{}', %s, 'champion'
+                  'gold-v1', %s, %s, %s, 'champion'
                 )
                 ON CONFLICT (model_version) DO UPDATE SET
                   feature_hash = EXCLUDED.feature_hash,
                   artifact_path = EXCLUDED.artifact_path,
                   status = 'champion'
                 """,
-                (model_version, datetime.now(timezone.utc), artifact_hash, str(model_path)),
+                (
+                    model_version,
+                    datetime.now(timezone.utc),
+                    artifact_hash,
+                    json.dumps(metrics),
+                    str(model_path),
+                ),
             )
             rows = cursor.execute(
                 "SELECT vacancy_id, name_raw, description_text FROM core.vacancies"
