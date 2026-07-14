@@ -8,6 +8,7 @@ from pathlib import Path
 
 import psycopg
 
+from ..transform.salary import normalize_salary
 from ..transform.vacancy import canonicalize_vacancy
 
 
@@ -164,6 +165,38 @@ def load_core_snapshot(database_url: str, snapshot_date: date, run_id: uuid.UUID
                         canonical.content_hash,
                     ),
                 )
+                salary = row["payload"].get("salary")
+                if isinstance(salary, dict):
+                    raw_from = salary.get("from")
+                    raw_to = salary.get("to")
+                    currency = salary.get("currency")
+                    result = normalize_salary(raw_from, raw_to, currency)
+                    cursor.execute(
+                        """
+                        INSERT INTO core.salary_offers (
+                          vacancy_id, from_raw, to_raw, currency_raw, gross_raw,
+                          from_rub, to_rub, midpoint_rub, is_gross, normalization_status
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (vacancy_id) DO UPDATE SET
+                          from_raw = EXCLUDED.from_raw, to_raw = EXCLUDED.to_raw,
+                          currency_raw = EXCLUDED.currency_raw, gross_raw = EXCLUDED.gross_raw,
+                          from_rub = EXCLUDED.from_rub, to_rub = EXCLUDED.to_rub,
+                          midpoint_rub = EXCLUDED.midpoint_rub, is_gross = EXCLUDED.is_gross,
+                          normalization_status = EXCLUDED.normalization_status
+                        """,
+                        (
+                            canonical.vacancy_id,
+                            raw_from,
+                            raw_to,
+                            currency,
+                            salary.get("gross"),
+                            result.from_rub,
+                            result.to_rub,
+                            result.midpoint_rub,
+                            salary.get("gross"),
+                            result.status,
+                        ),
+                    )
                 cursor.execute(
                     """
                     INSERT INTO core.publications (
