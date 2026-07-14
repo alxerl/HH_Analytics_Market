@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="HH_MARKET_", env_file=".env", extra="ignore")
 
     api_base_url: str = "https://api.hh.ru"
-    database_url: str = "postgresql+psycopg://hh_market:hh_market@localhost:5432/hh_market"
+    database_url: str = "postgresql://hh_market:hh_market@localhost:5432/hh_market"
     raw_root: Path = Path("data/raw")
     log_level: str = "INFO"
     api_timeout_seconds: float = Field(default=30, gt=0)

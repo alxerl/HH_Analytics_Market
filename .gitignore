@@ -15,6 +15,7 @@ models/**
 !models/.gitkeep
 reports/**
 !reports/.gitkeep
+!reports/README.md
 
 # OS and editor files
 .DS_Store

@@ -50,6 +50,10 @@ data-retention policy must be reviewed before publishing or redistributing any c
 `transform` builds `reports/transformed-<date>.json` with canonical vacancy records, rule-based
 role labels, dictionary skills and data-quality results. Reports remain local and are not committed.
 
+For the database-backed path, run `migrate`, `load`, `predict`, `quality`, then `recommend`. The
+daily GitHub Actions workflow executes this sequence and stores generated reports as short-lived
+artifacts. See [the runbook](docs/runbook.md) and [BI dataset contract](dashboard/README.md).
+
 ## Local database
 
 ```bash
