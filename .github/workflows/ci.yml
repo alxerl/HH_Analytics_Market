@@ -25,6 +25,8 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.12", "3.13"]
+    env:
+      HH_MARKET_INTEGRATION_DB_URL: postgresql://hh_market:hh_market@localhost:5432/hh_market
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v7
