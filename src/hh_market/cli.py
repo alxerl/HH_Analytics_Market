@@ -11,6 +11,8 @@ from pathlib import Path
 from . import __version__
 from .api.client import HHClient
 from .config import Settings, load_search_queries
+from .db.loaders import load_core_snapshot, load_raw_snapshot
+from .db.migrations import apply_migrations
 from .ingestion.collector import collect_queries
 from .logging import configure_logging
 from .pipeline import recommend_from_report, transform_snapshot
@@ -34,6 +36,12 @@ def build_parser() -> argparse.ArgumentParser:
     transform.add_argument("--date", dest="snapshot_date", type=date.fromisoformat, required=True)
     transform.add_argument("--skills", type=Path, default=Path("config/skills.yml"))
     transform.add_argument("--reports-root", type=Path, default=Path("reports"))
+
+    migrate = subparsers.add_parser("migrate", help="Apply SQL migrations")
+    migrate.add_argument("--migrations-dir", type=Path, default=Path("migrations"))
+
+    load = subparsers.add_parser("load", help="Load raw snapshots and canonical core records")
+    load.add_argument("--date", dest="snapshot_date", type=date.fromisoformat, required=True)
 
     for name, help_text in (
         ("train", "Train a model"),
@@ -90,6 +98,24 @@ def main(argv: list[str] | None = None) -> int:
             f"run_id={run_id} snapshot_date={args.snapshot_date.isoformat()} "
             f"records={transform_summary['records']} "
             f"quality_failures={transform_summary['quality_failures']}"
+        )
+        return 0
+    if args.command == "migrate":
+        migrations = apply_migrations(Settings().database_url, args.migrations_dir)
+        print(f"run_id={run_id} migrations_applied={migrations}")
+        return 0
+    if args.command == "load":
+        settings = Settings()
+        database_run_id = uuid.UUID(run_id)
+        raw_summary = load_raw_snapshot(
+            settings.database_url, settings.raw_root, args.snapshot_date, database_run_id
+        )
+        core_summary = load_core_snapshot(
+            settings.database_url, args.snapshot_date, database_run_id
+        )
+        print(
+            f"run_id={run_id} pages={raw_summary['pages']} "
+            f"snapshots={raw_summary['vacancy_snapshots']} vacancies={core_summary['vacancies']}"
         )
         return 0
     if args.command == "recommend":

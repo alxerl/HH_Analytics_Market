@@ -39,6 +39,8 @@ Copy `.env.example` to `.env` only when overriding defaults. Never commit `.env`
 uv run hh-market collect --date 2026-07-14 --query-set config/search_queries.yml
 uv run hh-market collect --date 2026-07-14 --resume
 uv run hh-market transform --date 2026-07-14
+uv run hh-market migrate
+uv run hh-market load --date 2026-07-14
 ```
 
 Responses are written below `data/raw/<snapshot-date>/`; this directory is intentionally ignored
