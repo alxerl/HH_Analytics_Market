@@ -17,6 +17,7 @@ from .db.migrations import apply_migrations
 from .ingestion.collector import collect_queries
 from .logging import configure_logging
 from .pipeline import recommend_from_report, transform_snapshot
+from .quality.runner import run_database_quality, should_fail
 from .recommendation.profile import load_profile
 
 
@@ -51,9 +52,12 @@ def build_parser() -> argparse.ArgumentParser:
         ("train", "Train a model"),
         ("evaluate", "Evaluate a model"),
         ("build-marts", "Build analytical marts"),
-        ("quality", "Run data quality checks"),
     ):
         subparsers.add_parser(name, help=help_text)
+    quality = subparsers.add_parser("quality", help="Run and persist data-quality checks")
+    quality.add_argument("--date", dest="snapshot_date", type=date.fromisoformat, required=True)
+    quality.add_argument("--fail-on", choices=("info", "warning", "critical"), default="critical")
+    quality.add_argument("--reports-root", type=Path, default=Path("reports"))
     recommend = subparsers.add_parser("recommend", help="Recommend transformed vacancies")
     recommend.add_argument("--date", dest="snapshot_date", type=date.fromisoformat, required=True)
     recommend.add_argument("--profile", type=Path, required=True)
@@ -128,6 +132,13 @@ def main(argv: list[str] | None = None) -> int:
             f"skills={prediction_summary['skill_matches']}"
         )
         return 0
+    if args.command == "quality":
+        results = run_database_quality(
+            Settings().database_url, uuid.UUID(run_id), args.snapshot_date, args.reports_root
+        )
+        failures = sum(not item.passed for item in results)
+        print(f"run_id={run_id} checks={len(results)} failures={failures}")
+        return 2 if should_fail(results, args.fail_on) else 0
     if args.command == "recommend":
         recommendations = recommend_from_report(
             args.reports_root, args.snapshot_date, load_profile(args.profile), args.top
