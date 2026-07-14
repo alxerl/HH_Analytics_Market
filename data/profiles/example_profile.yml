@@ -1,0 +1,7 @@
+target_roles: [data_analyst, product_analyst]
+target_seniority: genuine_junior
+current_skills: [sql, python]
+preferred_skills: [power_bi]
+excluded_employers: []
+locations: [1]
+salary_floor_rub: 100000

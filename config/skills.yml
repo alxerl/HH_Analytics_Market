@@ -1,0 +1,7 @@
+version: "1.0.0"
+skills:
+  sql: ["postgresql", "mysql"]
+  python: ["py"]
+  power_bi: ["power bi", "powerbi"]
+  tableau: []
+  r: []

@@ -1,0 +1,12 @@
+version: "1.0.0"
+queries:
+  - id: data-analyst
+    text: "data analyst"
+    areas: [1]
+    pages_cap: 5
+    active: true
+  - id: product-analyst
+    text: "product analyst"
+    areas: [1]
+    pages_cap: 5
+    active: true
