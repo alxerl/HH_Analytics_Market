@@ -1,0 +1,48 @@
+name: Daily collection
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "15 4 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hh-market-daily
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: hh_market
+          POSTGRES_USER: hh_market
+          POSTGRES_PASSWORD: hh_market
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U hh_market -d hh_market"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      HH_MARKET_DATABASE_URL: postgresql://hh_market:hh_market@localhost:5432/hh_market
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --all-extras --frozen
+      - run: uv run hh-market migrate
+      - run: uv run hh-market collect --date "$(date -u +%F)"
+      - run: uv run hh-market load --date "$(date -u +%F)"
+      - run: uv run hh-market predict
+      - run: uv run hh-market quality --date "$(date -u +%F)" --fail-on critical
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hh-market-artifacts
+          path: reports/
+          retention-days: 14
