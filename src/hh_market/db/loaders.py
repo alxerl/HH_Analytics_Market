@@ -3,7 +3,7 @@
 import hashlib
 import json
 import uuid
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import psycopg
@@ -86,7 +86,9 @@ def load_raw_snapshot(
                             request_id,
                         ),
                     )
-                    loaded_vacancies += cursor.rowcount
+                    # The summary describes valid records observed in the input page,
+                    # not only newly inserted rows; the unique constraint keeps retries idempotent.
+                    loaded_vacancies += 1
                 loaded_pages += 1
             cursor.execute(
                 """
@@ -108,9 +110,14 @@ def load_core_snapshot(database_url: str, snapshot_date: date, run_id: uuid.UUID
             rows = cursor.execute(
                 """
                 SELECT snapshot_id, payload FROM raw.vacancy_snapshots
-                WHERE run_id = %s ORDER BY snapshot_id
+                WHERE snapshot_at >= %s AND snapshot_at < %s
+                ORDER BY snapshot_id
                 """,
-                (run_id,),
+                (
+                    datetime.combine(snapshot_date, datetime.min.time(), tzinfo=timezone.utc),
+                    datetime.combine(snapshot_date, datetime.min.time(), tzinfo=timezone.utc)
+                    + timedelta(days=1),
+                ),
             ).fetchall()
             for row in rows:
                 canonical = canonicalize_vacancy(row["payload"])

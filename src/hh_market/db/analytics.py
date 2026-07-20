@@ -110,7 +110,7 @@ def _upsert_skill(cursor: psycopg.Cursor[Any], canonical_name: str, version: str
         (canonical_name, version),
     ).fetchone()
     assert row is not None
-    return int(row[0])
+    return int(row["skill_id"])
 
 
 def _read_skills(path: Path) -> tuple[dict[str, list[str]], str]:
