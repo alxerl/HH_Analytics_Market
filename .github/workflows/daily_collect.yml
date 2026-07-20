@@ -40,7 +40,7 @@ jobs:
       - run: uv run hh-market load --date "$(date -u +%F)"
       - run: uv run hh-market predict
       - run: uv run hh-market quality --date "$(date -u +%F)" --fail-on critical
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: hh-market-artifacts
