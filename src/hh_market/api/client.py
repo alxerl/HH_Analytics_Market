@@ -18,11 +18,15 @@ class HHClient:
         timeout: float = 30,
         max_retries: int = 4,
         transport: httpx.BaseTransport | None = None,
+        user_agent: str = "hh-analytics-market/0.1 (https://github.com/alxerl/HH_Analytics_Market)",
+        access_token: str | None = None,
     ) -> None:
         self._client = httpx.Client(
             base_url=base_url.rstrip("/"),
             timeout=timeout,
-            headers={"User-Agent": "hh-analytics-market/0.1 (+https://github.com/)"},
+            headers={"User-Agent": user_agent, **(
+                {"Authorization": f"Bearer {access_token}"} if access_token else {}
+            )},
             transport=transport,
         )
         self._attempts = max_retries + 1
@@ -39,10 +43,27 @@ class HHClient:
     def get(self, path: str, params: Mapping[str, Any] | None = None) -> dict[str, Any]:
         try:
             response = self._request(path, params)
-        except (httpx.HTTPError, HHApiError) as exc:
+        except (httpx.HTTPError, HHApiError, _RetryableStatus) as exc:
             raise HHApiError(str(exc)) from exc
         if response.status_code >= 400:
-            raise HHApiError(f"HH API returned HTTP {response.status_code} for {path}")
+            detail = ""
+            try:
+                body = response.json()
+                errors = body.get("errors", [])
+                detail = "; ".join(
+                    f"{error.get('type', 'unknown')}:{error.get('value', '')}"
+                    for error in errors if isinstance(error, dict)
+                )
+                detail += f" request_id={body.get('request_id', 'unknown')}"
+            except (ValueError, AttributeError, TypeError):
+                detail = "non-JSON error response"
+            if response.status_code in (401, 403):
+                detail += (
+                    ". Access denied: verify HH API permissions and set "
+                    "HH_MARKET_API_ACCESS_TOKEN if authorization is required. "
+                    "Collection stopped; no synthetic data substituted."
+                )
+            raise HHApiError(f"HH API returned HTTP {response.status_code} for {path}: {detail}")
         try:
             payload = response.json()
         except ValueError as exc:

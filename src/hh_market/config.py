@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     api_timeout_seconds: float = Field(default=30, gt=0)
     api_max_retries: int = Field(default=4, ge=0, le=10)
+    api_user_agent: str = "hh-analytics-market/0.1 (https://github.com/alxerl/HH_Analytics_Market)"
+    api_access_token: SecretStr | None = None
 
 
 class SearchQuery(BaseModel):

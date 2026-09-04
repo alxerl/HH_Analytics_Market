@@ -10,6 +10,7 @@ __pycache__/
 # Local configuration and generated data
 .env
 data/raw/**
+data/demo-raw/**
 !data/raw/.gitkeep
 models/**
 !models/.gitkeep

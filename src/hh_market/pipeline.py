@@ -22,12 +22,19 @@ def transform_snapshot(
     dictionary, version = _load_skill_dictionary(skills_path)
     records: list[dict[str, Any]] = []
     canonical_records: list[CanonicalVacancy] = []
-    for path in sorted((raw_root / snapshot_date.isoformat()).rglob("page-*.json")):
+    paths = sorted((raw_root / snapshot_date.isoformat()).rglob("page-*.json"))
+    if not paths:
+        raise ValueError("No collected pages for this snapshot; run collect successfully first")
+    seen: set[str] = set()
+    for path in paths:
         payload = json.loads(path.read_text(encoding="utf-8"))
         for item in payload.get("items", []):
             if not isinstance(item, dict):
                 continue
             canonical = canonicalize_vacancy(item)
+            if canonical.vacancy_id in seen:
+                continue
+            seen.add(canonical.vacancy_id)
             canonical_records.append(canonical)
             role = classify_role(canonical.name_raw, canonical.description_text)
             skills = extract_skills(canonical.description_text, dictionary, version)
