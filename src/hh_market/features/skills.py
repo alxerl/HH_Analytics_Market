@@ -22,8 +22,11 @@ def extract_skills(
         candidates = [canonical, *aliases]
         match = next(
             (
-                re.search(rf"(?<!\w){re.escape(alias)}(?!\w)", text, flags=re.IGNORECASE)
+                match
                 for alias in candidates
+                if (match := re.search(
+                    rf"(?<!\w){re.escape(alias)}(?!\w)", text, flags=re.IGNORECASE
+                )) is not None
             ),
             None,
         )

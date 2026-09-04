@@ -18,6 +18,7 @@ dependencies = [
   "joblib>=1.4,<2",
   "PyYAML>=6.0,<7",
   "tenacity>=8.3,<10",
+  "matplotlib>=3.9,<4",
 ]
 
 [project.optional-dependencies]
@@ -41,13 +42,13 @@ addopts = ["-ra"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 strict = true
 files = ["src/hh_market"]
 

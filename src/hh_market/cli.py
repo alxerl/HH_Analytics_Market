@@ -9,7 +9,7 @@ from datetime import date
 from pathlib import Path
 
 from . import __version__
-from .api.client import HHClient
+from .api.client import HHApiError, HHClient
 from .config import Settings, load_search_queries
 from .db.analytics import persist_rule_features
 from .db.dedup import cluster_publications
@@ -25,12 +25,19 @@ from .models.train import train_role_model
 from .pipeline import recommend_from_report, transform_snapshot
 from .quality.runner import run_database_quality, should_fail
 from .recommendation.profile import load_profile
+from .reporting import create_demo, write_report
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="hh-market", description="HH Analytics Market pipeline")
     parser.add_argument("--version", action="version", version=__version__)
     subparsers = parser.add_subparsers(dest="command", required=True)
+    demo = subparsers.add_parser("demo", help="Create explicitly synthetic local demo data")
+    demo.add_argument("--date", dest="snapshot_date", type=date.fromisoformat, required=True)
+    demo.add_argument("--labels", type=Path, default=Path("data/labeling/gold_labels.csv"))
+    report = subparsers.add_parser("report", help="Render a local visual snapshot report")
+    report.add_argument("--date", dest="snapshot_date", type=date.fromisoformat, required=True)
+    report.add_argument("--reports-root", type=Path, default=Path("reports"))
 
     collect = subparsers.add_parser("collect", help="Collect vacancy snapshots")
     collect.add_argument(
@@ -87,6 +94,13 @@ def main(argv: list[str] | None = None) -> int:
     run_id = str(uuid.uuid4())
     logger = logging.getLogger("hh_market.cli")
     logger.info("command_started", extra={"run_id": run_id})
+    if args.command == "demo":
+        create_demo(args.snapshot_date, Settings().raw_root, args.labels)
+        print("Synthetic demo created; this is not collected HeadHunter data.")
+        return 0
+    if args.command == "report":
+        print(json.dumps(write_report(args.reports_root, args.snapshot_date), ensure_ascii=False))
+        return 0
     if args.command == "collect":
         query_set = load_search_queries(args.query_set)
         selected = [
@@ -101,10 +115,18 @@ def main(argv: list[str] | None = None) -> int:
             base_url=settings.api_base_url,
             timeout=settings.api_timeout_seconds,
             max_retries=settings.api_max_retries,
+            user_agent=settings.api_user_agent,
+            access_token=(settings.api_access_token.get_secret_value()
+                          if settings.api_access_token else None),
         ) as client:
-            summary = collect_queries(
-                client, selected, args.snapshot_date, settings.raw_root, resume=args.resume
-            )
+            try:
+                summary = collect_queries(
+                    client, selected, args.snapshot_date, settings.raw_root,
+                    resume=args.resume, include_details=True,
+                )
+            except HHApiError as exc:
+                logger.error(str(exc))
+                return 2
         print(
             f"run_id={run_id} snapshot_date={args.snapshot_date.isoformat()} "
             f"pages_collected={summary.pages_collected} pages_skipped={summary.pages_skipped} "

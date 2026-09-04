@@ -44,3 +44,14 @@ jobs:
             psql -h localhost -U hh_market -d hh_market -v ON_ERROR_STOP=1 -f "$migration"
           done
       - run: uv run pytest
+      - name: Build explicit synthetic visual example
+        env:
+          HH_MARKET_RAW_ROOT: data/demo-raw
+        run: |
+          uv run hh-market demo --date 2026-09-04
+          uv run hh-market transform --date 2026-09-04 --reports-root reports/demo
+          uv run hh-market report --date 2026-09-04 --reports-root reports/demo
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hh-demo-results-${{ matrix.python-version }}
+          path: reports/demo/

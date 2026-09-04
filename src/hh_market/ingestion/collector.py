@@ -28,11 +28,13 @@ def collect_queries(
     raw_root: Path,
     *,
     resume: bool,
+    include_details: bool = False,
 ) -> CollectionSummary:
     store = RawStore(raw_root)
     manifest_path = raw_root / snapshot_date.isoformat() / "manifest.json"
     manifest = load_manifest(manifest_path) if resume else load_manifest(manifest_path)
     collected = skipped = items_collected = 0
+    details: dict[str, dict[str, object]] = {}
 
     for query in queries:
         for area_id in query.areas:
@@ -50,6 +52,16 @@ def collect_queries(
                 items = payload.get("items", [])
                 if not isinstance(items, list):
                     raise ValueError("HH API field 'items' must be a list")
+                if include_details:
+                    enriched = []
+                    for item in items:
+                        if not isinstance(item, dict) or item.get("id") is None:
+                            raise ValueError("Vacancy search item has no id")
+                        vacancy_id = str(item["id"])
+                        if vacancy_id not in details:
+                            details[vacancy_id] = client.get(f"/vacancies/{vacancy_id}", params={})
+                        enriched.append(details[vacancy_id])
+                    payload["items"] = enriched
                 artifact = store.write_json(snapshot_date, query.id, area_id, page_no, payload)
                 manifest.add(
                     CompletedPage(
